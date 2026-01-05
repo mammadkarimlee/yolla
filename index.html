@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="az">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TezÇatdır - Pro</title>
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"
+    />
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <audio
+      id="notification-sound"
+      src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
+      preload="auto"
+    ></audio>
+
+    <div id="toast-container" class="toast-container"></div>
+    <div id="overlay" class="overlay" onclick="app.toggleSidebar()"></div>
+
+    <div id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="user-info">
+          <div class="avatar-circle"><i class="fas fa-user"></i></div>
+          <div>
+            <h4 id="sidebar-username">İstifadəçi</h4>
+            <span id="sidebar-role">Rol</span>
+          </div>
+        </div>
+        <button onclick="app.toggleSidebar()" class="close-btn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <ul class="menu-links">
+        <li>
+          <a onclick="app.goHome()"><i class="fas fa-home"></i> Ana Səhifə</a>
+        </li>
+        <li>
+          <a onclick="app.openHistory()"
+            ><i class="fas fa-history"></i> Tarixçə</a
+          >
+        </li>
+        <li>
+          <a onclick="app.openSettings()"
+            ><i class="fas fa-cog"></i> Tənzimləmələr</a
+          >
+        </li>
+        <li>
+          <a
+            onclick="window.open('https://wa.me/994500000000', '_blank')"
+            style="color: var(--secondary)"
+            ><i class="fas fa-headset"></i> Dəstək</a
+          >
+        </li>
+      </ul>
+
+      <div class="donate-card">
+        <p>Server xərclərinə dəstək:</p>
+        <button onclick="app.showDonateModal()" class="btn-donate">
+          ☕ Qəhvə Ismarla
+        </button>
+      </div>
+      <button onclick="app.logout()" class="btn btn-logout">
+        <i class="fas fa-sign-out-alt"></i> Çıxış
+      </button>
+    </div>
+
+    <div id="donate-modal" class="modal hidden">
+      <div class="modal-content">
+        <span class="close-modal" onclick="app.closeDonateModal()"
+          >&times;</span
+        >
+        <i
+          class="fas fa-heart"
+          style="font-size: 3rem; color: #f59e0b; margin-bottom: 15px"
+        ></i>
+        <h2>Dəstəyiniz üçün təşəkkürlər!</h2>
+        <div class="qr-placeholder">
+          <i class="fas fa-qrcode"></i> [m10 QR Kod]
+        </div>
+        <div class="copy-box">
+          <span>💳 Kart:</span>
+          <strong id="card-number">4169 0000 0000 0000</strong>
+          <button onclick="app.copyCard()" class="btn-copy">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-login" class="screen active">
+      <div class="logo-area" style="text-align: center; margin: 30px 0">
+        <h1>📦 TezÇatdır</h1>
+        <p>Giriş et və ya Qeydiyyatdan keç</p>
+      </div>
+      <div
+        style="
+          display: flex;
+          gap: 10px;
+          margin-bottom: 20px;
+          background: #e2e8f0;
+          padding: 5px;
+          border-radius: 12px;
+        "
+      >
+        <button
+          onclick="app.switchAuth('login')"
+          id="tab-login"
+          class="btn btn-tab active"
+        >
+          Giriş
+        </button>
+        <button
+          onclick="app.switchAuth('register')"
+          id="tab-register"
+          class="btn btn-tab"
+        >
+          Qeydiyyat
+        </button>
+      </div>
+
+      <div id="form-login">
+        <input type="email" id="login-email" placeholder="Email" />
+        <input type="password" id="login-password" placeholder="Şifrə" />
+        <button onclick="app.signIn()" class="btn btn-primary">Daxil Ol</button>
+      </div>
+
+      <div id="form-register" class="hidden">
+        <div style="display: flex; gap: 10px; margin-bottom: 15px">
+          <label class="role-select">
+            <input
+              type="radio"
+              name="role"
+              value="seller"
+              checked
+              onchange="app.toggleRegFields()"
+            />
+            <span>🏠 Satıcı</span>
+          </label>
+          <label class="role-select">
+            <input
+              type="radio"
+              name="role"
+              value="courier"
+              onchange="app.toggleRegFields()"
+            />
+            <span>🛵 Kuryer</span>
+          </label>
+        </div>
+        <input type="text" id="reg-name" placeholder="Ad Soyad" />
+        <input type="text" id="reg-phone" placeholder="Mobil nömrə" />
+        <input type="email" id="reg-email" placeholder="Email" />
+        <input
+          type="password"
+          id="reg-password"
+          placeholder="Şifrə (min 6 simvol)"
+        />
+
+        <div id="seller-fields">
+          <input type="text" id="reg-shop-name" placeholder="Mağaza Adı" />
+          <input
+            type="text"
+            id="reg-shop-address"
+            placeholder="Mağaza Ünvanı"
+          />
+        </div>
+        <div id="courier-fields" class="hidden">
+          <select
+            id="reg-vehicle"
+            style="
+              width: 100%;
+              padding: 14px;
+              margin-bottom: 12px;
+              border: 2px solid var(--border);
+              border-radius: 12px;
+              background: #f1f5f9;
+            "
+          >
+            <option value="moto">Motosiklet</option>
+            <option value="car">Avtomobil</option>
+            <option value="bicycle">Velosiped</option>
+          </select>
+          <input type="text" id="reg-plate" placeholder="Nömrə nişanı" />
+          <label
+            style="
+              display: block;
+              margin-bottom: 5px;
+              font-size: 0.8rem;
+              color: #666;
+            "
+            >Vəsiqə fotosu:</label
+          >
+          <input
+            type="file"
+            id="reg-file"
+            accept="image/*"
+            style="
+              background: white;
+              padding: 10px;
+              width: 100%;
+              box-sizing: border-box;
+            "
+          />
+        </div>
+        <button
+          onclick="app.signUp()"
+          class="btn btn-success"
+          style="margin-top: 15px"
+        >
+          Qeydiyyat
+        </button>
+      </div>
+    </div>
+
+    <div id="screen-seller" class="screen hidden">
+      <header>
+        <div class="brand">📦 Satıcı Paneli</div>
+        <button onclick="app.toggleSidebar()" class="btn-icon">
+          <i class="fas fa-bars"></i>
+        </button>
+      </header>
+      <div class="container">
+        <div class="card form-card">
+          <h3>Yeni Sifariş</h3>
+
+          <div
+            id="map"
+            style="
+              height: 250px;
+              width: 100%;
+              border-radius: 12px;
+              margin-bottom: 15px;
+              border: 1px solid #ccc;
+            "
+          ></div>
+          <p
+            style="
+              font-size: 0.8rem;
+              color: #666;
+              text-align: center;
+              margin-bottom: 10px;
+            "
+          >
+            <i class="fas fa-info-circle"></i> Xəritədən seçin VƏ YA aşağıda
+            dəqiq ünvanı yazın.
+          </p>
+
+          <input
+            type="text"
+            id="itemName"
+            placeholder="Məhsulun adı (məs: Tort)"
+          />
+
+          <input type="hidden" id="p_lat" /><input type="hidden" id="p_lng" />
+          <input type="hidden" id="d_lat" /><input type="hidden" id="d_lng" />
+
+          <div class="row">
+            <input
+              type="text"
+              id="pickup"
+              placeholder="Götürüləcək yer (Yaz)"
+              onchange="app.manualAddressInput('pickup')"
+            />
+            <input
+              type="text"
+              id="dropoff"
+              placeholder="Çatdırılacaq yer (Yaz)"
+              onchange="app.manualAddressInput('dropoff')"
+            />
+          </div>
+
+          <div class="row">
+            <input type="text" id="recipientName" placeholder="Alıcı Adı" />
+            <input type="text" id="recipientPhone" placeholder="Alıcı Tel" />
+          </div>
+          <div class="row">
+            <input
+              type="text"
+              id="distanceDisplay"
+              placeholder="Məsafə (km)"
+              readonly
+              style="width: 80px; text-align: center"
+            />
+            <input type="number" id="price" placeholder="Qiymət (AZN)" />
+            <label class="checkbox-container"
+              ><input type="checkbox" id="isFragile" /> ⚠️ Sınan</label
+            >
+          </div>
+          <button onclick="app.createOrder()" class="btn btn-primary">
+            Kuryer Çağır
+          </button>
+        </div>
+
+        <div
+          id="seller-requests-container"
+          class="hidden"
+          style="
+            margin-bottom: 20px;
+            border: 2px dashed #f59e0b;
+            padding: 10px;
+            border-radius: 12px;
+            background: #fffbeb;
+          "
+        >
+          <h4 style="margin: 0 0 10px 0; color: #b45309">
+            <i class="fas fa-user-clock"></i> Kuryer Təklifləri
+          </h4>
+          <div id="seller-requests-list"></div>
+        </div>
+        <h3>Sifarişləriniz</h3>
+
+        <div id="seller-orders-list"></div>
+      </div>
+    </div>
+
+    <div id="screen-courier" class="screen hidden">
+      <header>
+        <div class="brand">🛵 Kuryer</div>
+        <button onclick="app.toggleSidebar()" class="btn-icon">
+          <i class="fas fa-bars"></i>
+        </button>
+      </header>
+      <div class="container">
+        <div class="toggle-wrapper">
+          <span style="font-weight: 600; font-size: 0.9rem"
+            >🔴 Offline / 🟢 Online</span
+          >
+          <label class="switch">
+            <input
+              type="checkbox"
+              id="onlineToggle"
+              onchange="app.toggleOnlineStatus()"
+            />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <h3>Sifariş Bazarı</h3>
+        <div id="courier-market-list"></div>
+        <h3>Aktiv İş (Max 2)</h3>
+        <div id="courier-active-job"><p class="empty-msg">İş yoxdur</p></div>
+      </div>
+    </div>
+
+    <div id="screen-settings" class="screen hidden">
+      <header>
+        <div class="brand"><i class="fas fa-cog"></i> Tənzimləmələr</div>
+        <button onclick="app.toggleSidebar()" class="btn-icon">
+          <i class="fas fa-bars"></i>
+        </button>
+      </header>
+      <div class="container">
+        <div class="card form-card">
+          <h3>Profil Məlumatları</h3>
+          <label style="font-size: 0.8rem; color: #666">Ad və Soyad:</label>
+          <input type="text" id="set-name" />
+          <label style="font-size: 0.8rem; color: #666">Mobil nömrə:</label>
+          <input type="text" id="set-phone" />
+          <div id="settings-dynamic-fields"></div>
+          <button
+            onclick="app.saveSettings()"
+            class="btn btn-primary"
+            style="margin-top: 20px"
+          >
+            <i class="fas fa-save"></i> Yadda Saxla
+          </button>
+          <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee" />
+          <p style="font-size: 0.8rem; color: #999; text-align: center">
+            Email dəyişdirilə bilməz.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-history" class="screen hidden">
+      <header>
+        <div class="brand"><i class="fas fa-history"></i> Tarixçə</div>
+        <button onclick="app.toggleSidebar()" class="btn-icon">
+          <i class="fas fa-bars"></i>
+        </button>
+      </header>
+      <div class="container">
+        <div
+          class="card"
+          style="
+            background: linear-gradient(135deg, var(--primary), #818cf8);
+            color: white;
+            text-align: center;
+          "
+        >
+          <h3
+            style="
+              color: white;
+              opacity: 0.9;
+              font-size: 1rem;
+              margin-bottom: 5px;
+            "
+          >
+            <i class="fas fa-wallet"></i>
+            <span id="history-stats-title">Ümumi</span>
+          </h3>
+          <h1
+            style="color: white; font-size: 2.5rem; margin: 0"
+            id="history-total-amount"
+          >
+            0.00 ₼
+          </h1>
+          <p
+            style="
+              color: white;
+              opacity: 0.8;
+              font-size: 0.8rem;
+              margin-top: 5px;
+            "
+          >
+            Tamamlanmış Sifarişlər
+          </p>
+        </div>
+        <h3 style="margin-top: 20px">Bitmiş Sifarişlər</h3>
+        <div id="history-list"><p class="empty-msg">Yüklənir...</p></div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
