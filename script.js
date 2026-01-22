@@ -2,7 +2,6 @@
 const SUPABASE_URL = "https://cxpddxwknchgbirbvvly.supabase.co";
 const SUPABASE_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4cGRkeHdrbmNoZ2JpcmJ2dmx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwOTY0NTQsImV4cCI6MjA4NDY3MjQ1NH0.12CQncOlgcBn1XeRSsrGKoN59xU_5dU-jG-NOCjo-rg";
-
 let supabaseClient = null;
 
 // Xəritə Dəyişənləri
