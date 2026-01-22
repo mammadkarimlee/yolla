@@ -39,6 +39,9 @@ const app = {
             }
         });
 
+        // YENİ: Autocomplete sistemini işə sal
+        app.setupAutocomplete();
+
         // REALTIME İZLƏMƏ
         supabaseClient
             .channel("public:orders")
@@ -146,46 +149,86 @@ const app = {
     },
 
     manualAddressInput: async (type) => {
-        const address = document.getElementById(type).value;
-        if (address.length < 3) return;
-        app.showToast("Ünvan axtarılır...", "info");
-        try {
-            const res = await fetch(
-                `https://nominatim.openstreetmap.org/search?format=json&q=${address}, Baku, Azerbaijan`
-            );
-            const data = await res.json();
-            if (data && data.length > 0) {
-                const lat = parseFloat(data[0].lat);
-                const lng = parseFloat(data[0].lon);
-                const latlng = { lat, lng };
+        // Bu köhnə funksiya artıq autocomplete ilə əvəzlənib,
+        // amma "input" eventindən kənar dəyişikliklər üçün saxlaya bilərik.
+        // Əsas işi aşağıdakı setupAutocomplete görür.
+    },
 
-                if (type === "pickup") {
-                    if (pickupMarker) map.removeLayer(pickupMarker);
-                    pickupMarker = L.marker(latlng, { draggable: true })
-                        .addTo(map)
-                        .bindPopup("Götür: " + address)
-                        .openPopup();
-                    document.getElementById("p_lat").value = lat;
-                    document.getElementById("p_lng").value = lng;
-                } else {
-                    if (dropoffMarker) map.removeLayer(dropoffMarker);
-                    dropoffMarker = L.marker(latlng, { draggable: true })
-                        .addTo(map)
-                        .bindPopup("Çatdır: " + address)
-                        .openPopup();
-                    document.getElementById("d_lat").value = lat;
-                    document.getElementById("d_lng").value = lng;
+    // --- YENİ: AUTOCOMPLETE SİSTEMİ ---
+    setupAutocomplete: () => {
+        const setupInput = (inputId, listId, type) => {
+            const input = document.getElementById(inputId);
+            const list = document.getElementById(listId);
+            let timeout = null;
+
+            input.addEventListener('input', (e) => {
+                const query = e.target.value;
+                clearTimeout(timeout);
+
+                if (query.length < 3) {
+                    list.classList.remove('active');
+                    return;
                 }
-                map.setView(latlng, 13);
-                if (pickupMarker && dropoffMarker)
-                    app.calculateRoute(
-                        pickupMarker.getLatLng(),
-                        dropoffMarker.getLatLng()
-                    );
-            } else app.showToast("Ünvan tapılmadı", "error");
-        } catch (e) {
-            console.error(e);
-        }
+
+                timeout = setTimeout(async () => {
+                    // Azərbaycan daxilində axtarış
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&countrycodes=az&addressdetails=1&limit=5`);
+                        const data = await res.json();
+
+                        list.innerHTML = "";
+                        if (data.length > 0) {
+                            list.classList.add('active');
+                            data.forEach(place => {
+                                const li = document.createElement('li');
+                                let displayName = place.display_name.split(",").slice(0, 4).join(",");
+                                li.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${displayName}`;
+
+                                li.onclick = () => {
+                                    input.value = displayName;
+                                    list.classList.remove('active');
+
+                                    const lat = parseFloat(place.lat);
+                                    const lng = parseFloat(place.lon);
+
+                                    if (type === 'pickup') {
+                                        document.getElementById("p_lat").value = lat;
+                                        document.getElementById("p_lng").value = lng;
+                                        if (pickupMarker) map.removeLayer(pickupMarker);
+                                        pickupMarker = L.marker([lat, lng], { draggable: true }).addTo(map).bindPopup("Götür: " + displayName).openPopup();
+                                    } else {
+                                        document.getElementById("d_lat").value = lat;
+                                        document.getElementById("d_lng").value = lng;
+                                        if (dropoffMarker) map.removeLayer(dropoffMarker);
+                                        dropoffMarker = L.marker([lat, lng], { draggable: true }).addTo(map).bindPopup("Çatdır: " + displayName).openPopup();
+                                    }
+
+                                    map.setView([lat, lng], 14);
+
+                                    if (pickupMarker && dropoffMarker) {
+                                        app.calculateRoute(pickupMarker.getLatLng(), dropoffMarker.getLatLng());
+                                    }
+                                };
+                                list.appendChild(li);
+                            });
+                        } else {
+                            list.classList.remove('active');
+                        }
+                    } catch (err) {
+                        console.log("Axtarış xətası", err);
+                    }
+                }, 400); // Debounce
+            });
+
+            document.addEventListener('click', (e) => {
+                if (e.target !== input && e.target !== list) {
+                    list.classList.remove('active');
+                }
+            });
+        };
+
+        setupInput('pickup', 'pickup-suggestions', 'pickup');
+        setupInput('dropoff', 'dropoff-suggestions', 'dropoff');
     },
 
     calculateRoute: (start, end) => {
